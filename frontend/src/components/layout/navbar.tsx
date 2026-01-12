@@ -32,11 +32,11 @@ export function Navbar() {
 
   return (
     <nav className="border-border bg-background border-b">
-      <div className="container mx-auto flex h-16 items-center justify-between px-4">
+      <div className="container mx-auto flex flex-wrap items-center justify-between gap-3 px-4 py-3">
         <Link href="/" className="font-heading text-primary text-2xl font-bold">
           SpeakBetter
         </Link>
-        <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center gap-3 md:gap-6">
           {isLoggedIn ? (
             <>
               <Link
