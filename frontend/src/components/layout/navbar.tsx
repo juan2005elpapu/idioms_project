@@ -1,27 +1,42 @@
 'use client'
 
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useCallback, useSyncExternalStore } from 'react'
 import Cookies from 'js-cookie'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { usePathname } from 'next/navigation'
+
+function subscribeToAuth(callback: () => void) {
+  // Escucha cambios de storage (por si otro tab modifica cookies)
+  window.addEventListener('storage', callback)
+  return () => window.removeEventListener('storage', callback)
+}
+
+function getAuthSnapshot() {
+  return !!Cookies.get('access_token')
+}
+
+function getServerSnapshot() {
+  return false // En SSR siempre false
+}
 
 export function Navbar() {
   const pathname = usePathname()
-  const isLoggedIn = !!Cookies.get('access_token')
+  const isLoggedIn = useSyncExternalStore(subscribeToAuth, getAuthSnapshot, getServerSnapshot)
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     Cookies.remove('access_token')
     Cookies.remove('refresh_token')
     window.location.href = '/login'
-  }
+  }, [])
 
   return (
     <nav className="border-border bg-background border-b">
-      <div className="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4 py-3">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href="/" className="font-heading text-primary text-2xl font-bold">
           SpeakBetter
         </Link>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-6">
           {isLoggedIn ? (
             <>
               <Link
@@ -38,7 +53,7 @@ export function Navbar() {
                   pathname === '/progress' ? 'text-primary' : 'text-muted-foreground'
                 }`}
               >
-                My Progress
+                Progress
               </Link>
               <Button
                 variant="outline"
