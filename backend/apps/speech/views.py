@@ -4,8 +4,13 @@ from rest_framework.views import APIView
 
 from apps.lessons.models import Exercise, UserProgress
 
-from .serializers import PronunciationRequestSerializer, PronunciationResponseSerializer
-from .services import pronunciation_assessor
+from .serializers import (
+    PronunciationRequestSerializer,
+    PronunciationResponseSerializer,
+    TextToSpeechRequestSerializer,
+    TextToSpeechResponseSerializer,
+)
+from .services import SpeechEvaluationError, pronunciation_assessor
 
 
 class PronunciationAssessmentView(APIView):
@@ -16,18 +21,22 @@ class PronunciationAssessmentView(APIView):
     """
 
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['post']  # solo POST
 
     def post(self, request):
         # Validate request
         serializer = PronunciationRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        # Get assessment from Azure (or mock)
-        result = pronunciation_assessor.assess(
-            audio_base64=serializer.validated_data['audio'],
-            reference_text=serializer.validated_data['reference_text'],
-            language=serializer.validated_data.get('language', 'en-US'),
-        )
+        try:
+            # Get assessment from Azure (or mock)
+            result = pronunciation_assessor.assess(
+                audio_base64=serializer.validated_data['audio'],
+                reference_text=serializer.validated_data['reference_text'],
+                language=serializer.validated_data.get('language', 'en-US'),
+            )
+        except SpeechEvaluationError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
         # Update user progress if exercise_id provided
         exercise_id = serializer.validated_data.get('exercise_id')
@@ -62,3 +71,23 @@ class PronunciationAssessmentView(APIView):
 
         except Exercise.DoesNotExist:
             pass
+
+
+class TextToSpeechView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ['post']
+
+    def post(self, request):
+        serializer = TextToSpeechRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            result = pronunciation_assessor.synthesize_speech(
+                text=serializer.validated_data['text'],
+                voice=serializer.validated_data['voice'],
+                language=serializer.validated_data.get('language', 'en-US'),
+            )
+        except SpeechEvaluationError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_serializer = TextToSpeechResponseSerializer(result)
+        return Response(response_serializer.data, status=status.HTTP_200_OK)

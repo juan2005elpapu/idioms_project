@@ -25,6 +25,7 @@ function blobToBase64(blob: Blob): Promise<string> {
 export function usePractice(lessonId?: number) {
   const [exercises, setExercises] = useState<ExerciseDetail[]>([])
   const [selectedExercise, setSelectedExercise] = useState<ExerciseDetail | null>(null)
+  const [language, setLanguage] = useState<string>('en-US')
   const [status, setStatus] = useState<Status>('idle')
   const [result, setResult] = useState<PracticeResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -40,6 +41,7 @@ export function usePractice(lessonId?: number) {
       .then((res) => {
         setExercises(res.data.exercises)
         setSelectedExercise(res.data.exercises[0] ?? null)
+        setLanguage(res.data.language ?? 'en-US')
       })
       .catch(() => setError('No se pudieron cargar los ejercicios.'))
   }, [lessonId])
@@ -59,6 +61,7 @@ export function usePractice(lessonId?: number) {
           audio,
           reference_text: selectedExercise.text_to_read,
           exercise_id: selectedExercise.id,
+          language,
         }
         const res = await submitPractice(payload)
         setResult(res.data)
@@ -72,7 +75,7 @@ export function usePractice(lessonId?: number) {
         setStatus('idle')
       }
     },
-    [selectedExercise]
+    [selectedExercise, language]
   )
 
   const startRecording = useCallback(async () => {
@@ -123,6 +126,7 @@ export function usePractice(lessonId?: number) {
   return {
     exercises: selectableExercises,
     selectedExercise,
+    language,
     status,
     result,
     error,

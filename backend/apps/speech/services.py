@@ -2,69 +2,219 @@
 Azure Speech Service integration for pronunciation assessment.
 """
 
+import base64
+import binascii
+import json
 import os
+import shutil
+import subprocess
+from typing import Any
 
-# Azure SDK - se usará cuando tengamos la API key
-# import azure.cognitiveservices.speech as speechsdk
+import azure.cognitiveservices.speech as speechsdk
+import requests
+from django.core.exceptions import ImproperlyConfigured
+
+
+class SpeechEvaluationError(Exception):
+    """Raised when pronunciation assessment cannot be completed."""
 
 
 class PronunciationAssessor:
     """
     Service for assessing pronunciation using Azure Speech SDK.
-
-    Returns mock data when AZURE_SPEECH_KEY is not configured.
     """
 
     def __init__(self):
         self.speech_key = os.environ.get('AZURE_SPEECH_KEY', '')
-        self.speech_region = os.environ.get('AZURE_SPEECH_REGION', 'eastus')
+        self.speech_region = os.environ.get('AZURE_SPEECH_REGION', '')
 
+    # Public API
     def assess(self, audio_base64: str, reference_text: str, language: str = 'en-US') -> dict:
-        """
-        Assess pronunciation of audio against reference text.
-
-        Args:
-            audio_base64: Base64 encoded audio (WAV format recommended)
-            reference_text: The text that should be pronounced
-            language: Language code (e.g., 'en-US', 'es-ES')
-
-        Returns:
-            Dictionary with pronunciation scores
-        """
-        if not self.speech_key:
-            # Return mock data for development
-            return self._get_mock_assessment(reference_text)
-
-        # TODO: Implement real Azure Speech API call
-        return self._get_mock_assessment(reference_text)
-
-    def _get_mock_assessment(self, reference_text: str) -> dict:
-        """Return mock assessment data for development."""
-        import random
-
-        words = reference_text.split()
-        word_scores = []
-
-        for word in words:
-            word_score = random.randint(70, 100)
-            word_scores.append(
-                {
-                    'word': word,
-                    'accuracy_score': word_score,
-                    'error_type': 'None' if word_score >= 80 else 'Mispronunciation',
-                }
+        if not self.speech_key or not self.speech_region:
+            raise ImproperlyConfigured(
+                'AZURE_SPEECH_KEY y/o AZURE_SPEECH_REGION no están configuradas.'
             )
 
-        overall_score = sum(w['accuracy_score'] for w in word_scores) / len(word_scores)
+        audio_bytes = self._decode_audio(audio_base64)
+        # Convertir a WAV PCM mono 16k si viene en webm/opus
+        wav_bytes = self._to_wav_pcm16(audio_bytes)
+
+        speech_config = speechsdk.SpeechConfig(
+            subscription=self.speech_key,
+            region=self.speech_region,
+        )
+        speech_config.speech_recognition_language = language or 'en-US'
+
+        # Audio desde bytes (base64)
+        push_stream = speechsdk.audio.PushAudioInputStream()
+        push_stream.write(wav_bytes)
+        push_stream.close()
+        audio_config = speechsdk.audio.AudioConfig(stream=push_stream)
+
+        # Config de pronunciación
+        pron_config = speechsdk.PronunciationAssessmentConfig(
+            reference_text=reference_text,
+            grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredMark,
+            granularity=speechsdk.PronunciationAssessmentGranularity.Phoneme,
+            enable_miscue=True,
+        )
+        recognizer = speechsdk.SpeechRecognizer(
+            speech_config=speech_config,
+            audio_config=audio_config,
+        )
+        pron_config.apply_to(recognizer)
+
+        try:
+            result = recognizer.recognize_once_async().get()
+        except Exception as exc:  # noqa: BLE001
+            raise SpeechEvaluationError('No se pudo comunicar con Azure Speech.') from exc
+
+        if result.reason != speechsdk.ResultReason.RecognizedSpeech:
+            details = (
+                result.cancellation_details.error_details
+                if result.reason == speechsdk.ResultReason.Canceled
+                else 'Reconocimiento fallido.'
+            )
+            raise SpeechEvaluationError(details or 'No se pudo reconocer el audio.')
+
+        json_result = result.properties.get(speechsdk.PropertyId.SpeechServiceResponse_JsonResult)
+        if not json_result:
+            raise SpeechEvaluationError('Azure no devolvió resultados de reconocimiento.')
+
+        return self._parse_result(json_result, reference_text)
+
+    def synthesize_speech(
+        self, text: str, voice: str = 'en-US-AriaNeural', language: str = 'en-US'
+    ) -> dict[str, str]:
+        if not self.speech_key or not self.speech_region:
+            raise ImproperlyConfigured(
+                'AZURE_SPEECH_KEY y/o AZURE_SPEECH_REGION no están configuradas.'
+            )
+        ssml = (
+            f'<speak version="1.0" xml:lang="{language}">'
+            f'<voice xml:lang="{language}" name="{voice}">'
+            f'{text}'
+            '</voice>'
+            '</speak>'
+        )
+        endpoint = f'https://{self.speech_region}.tts.speech.microsoft.com/cognitiveservices/v1'
+        headers = {
+            'Ocp-Apim-Subscription-Key': self.speech_key,
+            'Content-Type': 'application/ssml+xml',
+            'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
+        }
+
+        response = requests.post(endpoint, headers=headers, data=ssml.encode('utf-8'), timeout=20)
+        if response.status_code != 200:
+            raise SpeechEvaluationError('Azure Text-to-Speech falló.')
+
+        return {'audio': base64.b64encode(response.content).decode('utf-8')}
+
+    # Helpers
+    def _decode_audio(self, audio_base64: str) -> bytes:
+        """Limpia encabezado data: y decodifica base64."""
+        if ',' in audio_base64:
+            audio_base64 = audio_base64.split(',', 1)[1]
+        try:
+            return base64.b64decode(audio_base64)
+        except binascii.Error as exc:
+            raise SpeechEvaluationError('Audio inválido: base64 corrupto.') from exc
+
+    def _parse_result(self, raw_json: str, reference_text: str) -> dict[str, Any]:
+        payload = json.loads(raw_json)
+        nbest = payload.get('NBest') or []
+        if not nbest:
+            raise SpeechEvaluationError('Azure no devolvió alternativas de reconocimiento.')
+
+        top = nbest[0]
+        pa = top.get('PronunciationAssessment', {}) or {}
+        words_raw = top.get('Words', []) or []
+
+        words, suggestions = self._extract_words(words_raw)
 
         return {
-            'recognition_status': 'Success',
-            'pronunciation_score': round(overall_score, 1),
-            'accuracy_score': round(overall_score + random.uniform(-5, 5), 1),
-            'fluency_score': round(random.uniform(70, 95), 1),
-            'completeness_score': 100.0,
-            'words': word_scores,
+            'recognition_status': payload.get('RecognitionStatus'),
+            'display_text': top.get('Display') or reference_text,
+            'confidence': top.get('Confidence'),
+            'pronunciation_score': round(pa.get('PronScore', 0.0), 2),
+            'accuracy_score': round(pa.get('AccuracyScore', 0.0), 2),
+            'fluency_score': round(pa.get('FluencyScore', 0.0), 2),
+            'completeness_score': round(pa.get('CompletenessScore', 0.0), 2),
+            'words': words,
+            'suggestions': suggestions,
         }
+
+    def _extract_words(
+        self, words_payload: list[dict[str, Any]]
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        hints: list[dict[str, Any]] = []
+        processed: list[dict[str, Any]] = []
+
+        for item in words_payload:
+            pa = item.get('PronunciationAssessment', {}) or {}
+            accuracy = round(pa.get('AccuracyScore', 0.0), 2)
+            error_type = pa.get('ErrorType', 'None')
+            word_entry = {
+                'word': item.get('Word'),
+                'accuracy_score': accuracy,
+                'error_type': error_type,
+                'offset': item.get('Offset'),
+                'duration': item.get('Duration'),
+            }
+            processed.append(word_entry)
+
+            if accuracy < 90 or error_type != 'None':
+                hints.append(
+                    {
+                        'word': word_entry['word'],
+                        'accuracy_score': word_entry['accuracy_score'],
+                        'error_type': error_type,
+                        'hint': self._hint_for(error_type, word_entry['word']),
+                    }
+                )
+        return processed, hints
+
+    def _hint_for(self, error_type: str, word: str) -> str:
+        templates = {
+            'Substitution': f"Revisa la vocal/consonante en '{word}'; estás sustituyendo el sonido.",
+            'Omission': f"No omitas sonidos en '{word}'; articula cada sílaba.",
+            'Insertion': f"Evita añadir sonidos extra en '{word}'; manténlo limpio.",
+            'Stress': f"Ajusta el acento en '{word}'; practica la sílaba tónica.",
+            'None': f"Repite '{word}' cuidando entonación y ritmo.",
+        }
+        return templates.get(error_type, templates['None'])
+
+    def _to_wav_pcm16(self, audio_bytes: bytes) -> bytes:
+        """Convierte webm/opus a wav PCM 16k mono usando ffmpeg."""
+        ffmpeg_bin = shutil.which('ffmpeg')
+        if not ffmpeg_bin:
+            raise SpeechEvaluationError('ffmpeg no está en PATH; instálalo y agrega su binario.')
+
+        cmd = [
+            ffmpeg_bin,
+            '-i',
+            'pipe:0',  # entrada stdin
+            '-ar',
+            '16000',  # sample rate
+            '-ac',
+            '1',  # mono
+            '-f',
+            'wav',  # formato salida
+            'pipe:1',  # stdout
+        ]
+        try:
+            proc = subprocess.run(
+                cmd,
+                input=audio_bytes,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=True,
+            )
+            return proc.stdout
+        except subprocess.CalledProcessError as exc:
+            raise SpeechEvaluationError(
+                f'ffmpeg falló al convertir audio: {exc.stderr.decode(errors="ignore")}'
+            ) from exc
 
 
 # Singleton instance

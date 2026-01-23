@@ -18,6 +18,21 @@ class LessonAdmin(ModelAdmin):
     list_filter = ['level', 'language', 'is_active']
     search_fields = ['title', 'description']
     inlines = [ExerciseInline]
+    fieldsets = (
+        (
+            None,
+            {
+                'fields': (
+                    'title',
+                    'description',
+                    'level',
+                    'language',
+                    'order',
+                    'is_active',
+                ),
+            },
+        ),
+    )
 
     def exercise_count(self, obj):
         return obj.exercises.count()

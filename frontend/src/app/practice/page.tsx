@@ -1,10 +1,21 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { usePractice } from '@/hooks/usePractice'
 import { useSearchParams } from 'next/navigation'
-import { Mic, Square, Sparkles } from 'lucide-react'
+import { Mic, Square, Sparkles, Play } from 'lucide-react'
+import { textToSpeech } from '@/lib/api'
+
+const VOICE_MAP: Record<string, string> = {
+  'en-US': 'en-US-AriaNeural',
+  'pt-BR': 'pt-BR-FranciscaNeural',
+  'fr-FR': 'fr-FR-DeniseNeural',
+  'ru-RU': 'ru-RU-SvetlanaNeural',
+  'de-DE': 'de-DE-KatjaNeural',
+  'it-IT': 'it-IT-ElsaNeural',
+  'zh-CN': 'zh-CN-XiaoxiaoNeural',
+}
 
 export default function PracticePage() {
   const params = useSearchParams()
@@ -12,6 +23,7 @@ export default function PracticePage() {
   const {
     exercises,
     selectedExercise,
+    language,
     status,
     result,
     error,
@@ -20,10 +32,29 @@ export default function PracticePage() {
     setSelectedExercise,
   } = usePractice(lessonId)
 
+  const [isPlaying, setIsPlaying] = useState(false)
   const isRecording = status === 'recording'
   const canRecord = selectedExercise && status === 'idle'
-
   const accuracy = useMemo(() => result?.accuracy_score ?? 0, [result])
+
+  const handlePlayInstructions = useCallback(async () => {
+    if (!selectedExercise || isPlaying) return
+    setIsPlaying(true)
+    try {
+      const voice = VOICE_MAP[language] ?? 'en-US-AriaNeural'
+      const { data } = await textToSpeech({
+        text: selectedExercise.text_to_read,
+        voice,
+        language,
+      })
+      const audio = new Audio(`data:audio/mp3;base64,${data.audio}`)
+      audio.addEventListener('ended', () => setIsPlaying(false))
+      await audio.play()
+    } catch (ttsError) {
+      setIsPlaying(false)
+      console.error(ttsError)
+    }
+  }, [selectedExercise, isPlaying, language])
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-cyan-50/40 py-12">
@@ -67,6 +98,18 @@ export default function PracticePage() {
             <p className="text-foreground mt-4 text-center text-2xl leading-snug font-semibold">
               {selectedExercise?.text_to_read ?? 'Selecciona una lección para ver el texto.'}
             </p>
+            <div className="mt-4 flex items-center justify-center gap-3">
+              <Button
+                disabled={!selectedExercise || isPlaying}
+                onClick={handlePlayInstructions}
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2 rounded-full border px-4 py-2 text-base"
+              >
+                <Play size={16} />
+                {isPlaying ? 'Reproduciendo…' : 'Escuchar texto'}
+              </Button>
+            </div>
             {status === 'processing' && (
               <p className="text-primary mt-4 text-sm font-medium">Analizando…</p>
             )}

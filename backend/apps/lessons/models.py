@@ -1,6 +1,16 @@
 from django.conf import settings
 from django.db import models
 
+LANGUAGE_CHOICES = [
+    ('en-US', 'English (US)'),
+    ('pt-BR', 'Português (Brasil)'),
+    ('fr-FR', 'Français'),
+    ('ru-RU', 'Русский'),
+    ('de-DE', 'Deutsch'),
+    ('it-IT', 'Italiano'),
+    ('zh-CN', '中文 (普通话)'),
+]
+
 
 class Lesson(models.Model):
     """A lesson containing multiple exercises."""
@@ -14,7 +24,7 @@ class Lesson(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default='beginner')
-    language = models.CharField(max_length=10, default='en')
+    language = models.CharField(max_length=5, choices=LANGUAGE_CHOICES, default='en-US')
     order = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,10 +1,26 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useLessons } from '@/hooks/useLessons'
+
+const LANGUAGE_OPTIONS = [
+  { value: 'en-US', label: 'English (US)' },
+  { value: 'pt-BR', label: 'Português (Brasil)' },
+  { value: 'fr-FR', label: 'Français' },
+  { value: 'ru-RU', label: 'Русский' },
+  { value: 'de-DE', label: 'Deutsch' },
+  { value: 'it-IT', label: 'Italiano' },
+  { value: 'zh-CN', label: '中文 (普通话)' },
+]
+
+const LEVEL_OPTIONS = [
+  { value: 'beginner', label: 'Beginner' },
+  { value: 'intermediate', label: 'Intermediate' },
+  { value: 'advanced', label: 'Advanced' },
+]
 
 export default function LessonsPage() {
   const {
@@ -18,12 +34,27 @@ export default function LessonsPage() {
     clearSelection,
   } = useLessons()
   const [autoSelectDisabled, setAutoSelectDisabled] = useState(false)
+  const [languageFilter, setLanguageFilter] = useState('en-US')
+  const [levelFilter, setLevelFilter] = useState('beginner')
+
+  const filteredLessons = useMemo(
+    () =>
+      lessons.filter(
+        (lesson) =>
+          lesson.language?.toLowerCase() === languageFilter.toLowerCase() &&
+          lesson.level?.toLowerCase() === levelFilter.toLowerCase()
+      ),
+    [lessons, languageFilter, levelFilter]
+  )
+
+  const noMatches = lessons.length > 0 && filteredLessons.length === 0
+  const activeLessons = filteredLessons
 
   useEffect(() => {
-    if (!autoSelectDisabled && lessons.length && !selectedLesson) {
-      loadLessonDetail(lessons[0].id)
+    if (!autoSelectDisabled && activeLessons.length && !selectedLesson) {
+      loadLessonDetail(activeLessons[0].id)
     }
-  }, [lessons, loadLessonDetail, selectedLesson, autoSelectDisabled])
+  }, [activeLessons, autoSelectDisabled, loadLessonDetail, selectedLesson])
 
   const refreshLessons = () => {
     setAutoSelectDisabled(false)
@@ -37,13 +68,51 @@ export default function LessonsPage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-cyan-50/50 py-12">
-      <div className="container mx-auto space-y-8 px-4">
+      <div className="container mx-auto space-y-6 px-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="font-heading text-foreground text-3xl font-bold">Lessons</h1>
+          <div>
+            <h1 className="font-heading text-foreground text-3xl font-bold">Lessons</h1>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <label className="text-muted-foreground text-xs tracking-wide uppercase">
+                Language
+                <select
+                  className="border-border hover:border-primary ml-2 rounded-full border bg-white px-4 py-2 text-sm font-medium shadow-sm transition"
+                  value={languageFilter}
+                  onChange={(event) => setLanguageFilter(event.target.value)}
+                >
+                  {LANGUAGE_OPTIONS.map((language) => (
+                    <option key={language.value} value={language.value}>
+                      {language.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="text-muted-foreground text-xs tracking-wide uppercase">
+                Level
+                <select
+                  className="border-border hover:border-primary ml-2 rounded-full border bg-white px-4 py-2 text-sm font-medium shadow-sm transition"
+                  value={levelFilter}
+                  onChange={(event) => setLevelFilter(event.target.value)}
+                >
+                  {LEVEL_OPTIONS.map((level) => (
+                    <option key={level.value} value={level.value}>
+                      {level.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
           <Button onClick={refreshLessons} variant="ghost">
             Refresh
           </Button>
         </div>
+
+        {noMatches && (
+          <p className="text-muted-foreground text-xs">
+            No se encontraron lecciones para el filtro seleccionado. Ajusta el idioma o nivel.
+          </p>
+        )}
 
         {loading && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -57,7 +126,7 @@ export default function LessonsPage() {
 
         {!loading && !error && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {lessons.map((lesson) => (
+            {activeLessons.map((lesson) => (
               <Card
                 key={lesson.id}
                 role="button"

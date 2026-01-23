@@ -27,3 +27,13 @@ class PronunciationResponseSerializer(serializers.Serializer):
     fluency_score = serializers.FloatField()
     completeness_score = serializers.FloatField()
     words = WordScoreSerializer(many=True)
+
+
+class TextToSpeechRequestSerializer(serializers.Serializer):
+    text = serializers.CharField(max_length=2000)
+    voice = serializers.CharField(max_length=100, default='en-US-AriaNeural')
+    language = serializers.CharField(max_length=10, default='en-US')
+
+
+class TextToSpeechResponseSerializer(serializers.Serializer):
+    audio = serializers.CharField()
