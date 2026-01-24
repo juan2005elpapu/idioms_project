@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { Suspense, useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { usePractice } from '@/hooks/usePractice'
 import { useSearchParams } from 'next/navigation'
@@ -18,7 +18,7 @@ const VOICE_MAP: Record<string, string> = {
   'zh-CN': 'coral',
 }
 
-export default function PracticePage() {
+function PracticeContent() {
   const params = useSearchParams()
   const lessonId = params.get('lesson') ? Number(params.get('lesson')) : undefined
   const {
@@ -176,5 +176,13 @@ export default function PracticePage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function PracticePage() {
+  return (
+    <Suspense fallback={<div>Cargando...</div>}>
+      <PracticeContent />
+    </Suspense>
   )
 }
