@@ -8,6 +8,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 from dotenv import load_dotenv
 
 # Load .env file from project root
@@ -26,9 +27,19 @@ SECRET_KEY = os.environ.get(
 )
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', 'True') == 'True'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = (
+    os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+    if os.environ.get('DJANGO_ALLOWED_HOSTS')
+    else ['*']
+)
+
+CSRF_TRUSTED_ORIGINS = (
+    os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
+    if os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS')
+    else []
+)
 
 
 # Application definition
@@ -89,10 +100,9 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f'sqlite:///{BASE_DIR / "db.sqlite3"}', conn_max_age=600
+    )
 }
 
 
@@ -180,3 +190,5 @@ AZURE_SPEECH_REGION = os.environ.get('AZURE_SPEECH_REGION', 'eastus')
 
 # OpenAI
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

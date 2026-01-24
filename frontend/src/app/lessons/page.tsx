@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Reveal } from '@/components/ui/reveal'
 import { useLessons } from '@/hooks/useLessons'
 
 const LANGUAGE_OPTIONS = [
@@ -135,31 +136,32 @@ export default function LessonsPage() {
         {!loading && !error && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {activeLessons.map((lesson) => (
-              <Card
-                key={lesson.id}
-                role="button"
-                onClick={() => loadLessonDetail(lesson.id)}
-                className="group border-border hover:border-primary cursor-pointer border-2 bg-white/80 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl"
-              >
-                <CardHeader>
-                  <CardTitle className="font-heading text-xl">{lesson.title}</CardTitle>
-                  <CardDescription className="text-muted-foreground text-sm">
-                    {lesson.description}
-                  </CardDescription>
-                  <div className="text-muted-foreground mt-3 flex items-center justify-between text-xs font-medium uppercase">
-                    <span>{lesson.level}</span>
-                    <span>{lesson.exercise_count} exercises</span>
-                  </div>
-                  <div className="mt-4 flex items-center gap-3">
-                    <Button variant="outline" size="sm">
-                      View details
-                    </Button>
-                    <Link href={`/practice?lesson=${lesson.id}`}>
-                      <Button size="sm">Practice</Button>
-                    </Link>
-                  </div>
-                </CardHeader>
-              </Card>
+              <Reveal key={lesson.id}>
+                <Card
+                  role="button"
+                  onClick={() => loadLessonDetail(lesson.id)}
+                  className="group border-border hover:border-primary cursor-pointer border-2 bg-white/80 transition duration-200 hover:-translate-y-0.5 hover:shadow-xl"
+                >
+                  <CardHeader>
+                    <CardTitle className="font-heading text-xl">{lesson.title}</CardTitle>
+                    <CardDescription className="text-muted-foreground text-sm">
+                      {lesson.description}
+                    </CardDescription>
+                    <div className="text-muted-foreground mt-3 flex items-center justify-between text-xs font-medium uppercase">
+                      <span>{lesson.level}</span>
+                      <span>{lesson.exercise_count} exercises</span>
+                    </div>
+                    <div className="mt-4 flex items-center gap-3">
+                      <Button variant="outline" size="sm">
+                        View details
+                      </Button>
+                      <Link href={`/practice?lesson=${lesson.id}`}>
+                        <Button size="sm">Practice</Button>
+                      </Link>
+                    </div>
+                  </CardHeader>
+                </Card>
+              </Reveal>
             ))}
           </div>
         )}
@@ -184,22 +186,21 @@ export default function LessonsPage() {
             ) : (
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
                 {selectedLesson.exercises.map((exercise) => (
-                  <Card
-                    key={exercise.id}
-                    className="group border-border hover:border-primary border bg-cyan-50/70 shadow-inner transition duration-200 hover:-translate-y-0.5"
-                  >
-                    <CardHeader>
-                      <CardTitle className="font-heading group-hover:text-primary text-lg">
-                        {exercise.title}
-                      </CardTitle>
-                      <CardDescription className="text-muted-foreground text-sm">
-                        {exercise.text_to_read}
-                      </CardDescription>
-                      <p className="text-muted-foreground mt-3 text-xs tracking-wide uppercase">
-                        Exercise #{exercise.order}
-                      </p>
-                    </CardHeader>
-                  </Card>
+                  <Reveal key={exercise.id}>
+                    <Card className="group border-border hover:border-primary border bg-cyan-50/70 shadow-inner transition duration-200 hover:-translate-y-0.5">
+                      <CardHeader>
+                        <CardTitle className="font-heading group-hover:text-primary text-lg">
+                          {exercise.title}
+                        </CardTitle>
+                        <CardDescription className="text-muted-foreground text-sm">
+                          {exercise.text_to_read}
+                        </CardDescription>
+                        <p className="text-muted-foreground mt-3 text-xs tracking-wide uppercase">
+                          Exercise #{exercise.order}
+                        </p>
+                      </CardHeader>
+                    </Card>
+                  </Reveal>
                 ))}
               </div>
             )}

@@ -14,7 +14,7 @@ export function useProgress() {
     try {
       const { data } = await getProgress()
       setProgress(data)
-    } catch (err) {
+    } catch {
       setError('No se pudo cargar el progreso.')
     } finally {
       setLoading(false)

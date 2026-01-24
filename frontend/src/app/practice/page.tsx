@@ -6,6 +6,7 @@ import { usePractice } from '@/hooks/usePractice'
 import { useSearchParams } from 'next/navigation'
 import { Mic, Square, Sparkles, Play } from 'lucide-react'
 import { textToSpeech } from '@/lib/api'
+import { Reveal } from '@/components/ui/reveal'
 
 const VOICE_MAP: Record<string, string> = {
   'en-US': 'alloy',
@@ -160,11 +161,15 @@ export default function PracticePage() {
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {result.words.map((word) => (
-                <div key={word.word} className="border-border rounded-2xl border bg-cyan-50/70 p-4">
-                  <p className="text-foreground text-sm font-semibold">{word.word}</p>
-                  <p className="text-muted-foreground text-xs">Precisión {word.accuracy_score}%</p>
-                  <p className="text-muted-foreground text-xs">Error: {word.error_type}</p>
-                </div>
+                <Reveal key={word.word}>
+                  <div className="border-border rounded-2xl border bg-cyan-50/70 p-4">
+                    <p className="text-foreground text-sm font-semibold">{word.word}</p>
+                    <p className="text-muted-foreground text-xs">
+                      Precisión {word.accuracy_score}%
+                    </p>
+                    <p className="text-muted-foreground text-xs">Error: {word.error_type}</p>
+                  </div>
+                </Reveal>
               ))}
             </div>
           </section>

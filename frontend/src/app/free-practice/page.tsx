@@ -10,6 +10,7 @@ import {
 } from '@/lib/api'
 import { Mic, Square, Play } from 'lucide-react'
 import Link from 'next/link'
+import { Reveal } from '@/components/ui/reveal'
 
 const LANGUAGE_OPTIONS = [
   { value: 'en-US', label: 'English (US)' },
@@ -285,65 +286,70 @@ export default function FreePracticePage() {
           </div>
 
           {phrases.length > 0 && (
-            <div className="border-border mt-6 rounded-2xl border bg-cyan-50/60 p-6 text-center shadow-inner">
-              <p className="text-muted-foreground text-xs tracking-wide uppercase">
-                Flashcard {index + 1} / {phrases.length}
-              </p>
-              <p className="text-foreground mt-3 text-2xl font-semibold">{currentPhrase}</p>
+            <Reveal>
+              <div className="border-border mt-6 rounded-2xl border bg-cyan-50/60 p-6 text-center shadow-inner">
+                <p className="text-muted-foreground text-xs tracking-wide uppercase">
+                  Flashcard {index + 1} / {phrases.length}
+                </p>
+                <p className="text-foreground mt-3 text-2xl font-semibold">{currentPhrase}</p>
 
-              <div className="mt-4 flex justify-center">
-                <Button variant="outline" onClick={handlePlay} disabled={isPlaying}>
-                  <Play size={16} className="mr-2" />
-                  {isPlaying ? 'Reproduciendo…' : 'Escuchar'}
-                </Button>
-              </div>
-
-              <div className="mt-5 flex items-center justify-center gap-3">
-                <Button
-                  disabled={status !== 'idle'}
-                  onClick={startRecording}
-                  className="flex-1 rounded-full px-4"
-                >
-                  <Mic size={16} className="mr-2" />
-                  Grabar
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={status !== 'recording'}
-                  onClick={stopRecording}
-                  className="flex-1 rounded-full px-4"
-                >
-                  <Square size={16} className="mr-2" />
-                  Detener
-                </Button>
-              </div>
-
-              {status === 'processing' && <p className="text-primary mt-3 text-sm">Analizando…</p>}
-
-              {result && (
-                <div className="mt-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-muted-foreground text-sm">
-                      Accuracy general {accuracy.toFixed(2)}%
-                    </p>
-                  </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    {result.words?.map((word, idx) => (
-                      <div
-                        key={`${word.word}-${idx}`}
-                        className="border-border rounded-2xl border bg-cyan-50/70 p-4"
-                      >
-                        <p className="text-foreground text-sm font-semibold">{word.word}</p>
-                        <p className="text-muted-foreground text-xs">
-                          Precisión {word.accuracy_score}%
-                        </p>
-                        <p className="text-muted-foreground text-xs">Error: {word.error_type}</p>
-                      </div>
-                    ))}
-                  </div>
+                <div className="mt-4 flex justify-center">
+                  <Button variant="outline" onClick={handlePlay} disabled={isPlaying}>
+                    <Play size={16} className="mr-2" />
+                    {isPlaying ? 'Reproduciendo…' : 'Escuchar'}
+                  </Button>
                 </div>
-              )}
-            </div>
+
+                <div className="mt-5 flex items-center justify-center gap-3">
+                  <Button
+                    disabled={status !== 'idle'}
+                    onClick={startRecording}
+                    className="flex-1 rounded-full px-4"
+                  >
+                    <Mic size={16} className="mr-2" />
+                    Grabar
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={status !== 'recording'}
+                    onClick={stopRecording}
+                    className="flex-1 rounded-full px-4"
+                  >
+                    <Square size={16} className="mr-2" />
+                    Detener
+                  </Button>
+                </div>
+
+                {status === 'processing' && (
+                  <p className="text-primary mt-3 text-sm">Analizando…</p>
+                )}
+
+                {result && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-muted-foreground text-sm">
+                        Accuracy general {accuracy.toFixed(2)}%
+                      </p>
+                    </div>
+                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      {result.words?.map((word, idx) => (
+                        <Reveal key={`${word.word}-${idx}`}>
+                          <div className="border-border rounded-2xl border bg-cyan-50/70 p-4">
+                            <p className="text-foreground text-sm font-semibold">{word.word}</p>
+                            <p className="text-muted-foreground text-xs">
+                              Precisión {word.accuracy_score}%
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              Error: {word.error_type}
+                            </p>
+                          </div>
+                        </Reveal>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Reveal>
           )}
         </div>
       </div>

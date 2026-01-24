@@ -29,4 +29,27 @@
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
+  min-height: 100vh;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.95) 50%, transparent 90%),
+    radial-gradient(circle at 50% 0%, rgba(34, 211, 238, 0.22) 30%, transparent 70%),
+    radial-gradient(circle at 50% 0%, rgba(168, 85, 247, 0.28) 0%, transparent 50%);
+  background-repeat: no-repeat;
+  background-size: 200% 1400px, 180% 1200px, 160% 900px;
+  background-position: center top;
+  background-attachment: fixed;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  filter: blur(10px);
+  transition: opacity 700ms ease, transform 700ms ease, filter 700ms ease;
+  will-change: transform, opacity, filter;
+}
+
+.reveal-visible {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
 }

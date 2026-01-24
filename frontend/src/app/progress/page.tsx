@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
+import { Reveal } from '@/components/ui/reveal'
 import { useProgress } from '@/hooks/useProgress'
 
 export default function ProgressPage() {
@@ -69,29 +70,32 @@ export default function ProgressPage() {
         {!loading && !error && (
           <div className="space-y-6">
             {grouped.map(([lessonTitle, items]) => (
-              <div key={lessonTitle} className="rounded-3xl bg-white/80 p-6 shadow-xl">
-                <h2 className="font-heading text-lg font-semibold">{lessonTitle}</h2>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {items.map((item) => (
-                    <div
-                      key={item.id}
-                      className="border-border rounded-2xl border bg-cyan-50/70 p-4"
-                    >
-                      <p className="text-foreground text-sm font-semibold">{item.exercise_title}</p>
-                      <p className="text-muted-foreground text-xs">
-                        Mejor: {item.best_score.toFixed(1)}%
-                      </p>
-                      <p className="text-muted-foreground text-xs">Intentos: {item.attempts}</p>
-                      <p className="text-muted-foreground text-xs">
-                        Estado: {item.completed ? 'Completado' : 'En progreso'}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        Último intento: {new Date(item.last_attempt_at).toLocaleString()}
-                      </p>
-                    </div>
-                  ))}
+              <Reveal key={lessonTitle}>
+                <div className="rounded-3xl bg-white/80 p-6 shadow-xl">
+                  <h2 className="font-heading text-lg font-semibold">{lessonTitle}</h2>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    {items.map((item) => (
+                      <Reveal key={item.id}>
+                        <div className="border-border rounded-2xl border bg-cyan-50/70 p-4">
+                          <p className="text-foreground text-sm font-semibold">
+                            {item.exercise_title}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            Mejor: {item.best_score.toFixed(1)}%
+                          </p>
+                          <p className="text-muted-foreground text-xs">Intentos: {item.attempts}</p>
+                          <p className="text-muted-foreground text-xs">
+                            Estado: {item.completed ? 'Completado' : 'En progreso'}
+                          </p>
+                          <p className="text-muted-foreground text-xs">
+                            Último intento: {new Date(item.last_attempt_at).toLocaleString()}
+                          </p>
+                        </div>
+                      </Reveal>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         )}
