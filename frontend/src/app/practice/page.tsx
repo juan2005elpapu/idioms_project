@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { usePractice } from '@/hooks/usePractice'
 import { useSearchParams } from 'next/navigation'
@@ -8,13 +8,13 @@ import { Mic, Square, Sparkles, Play } from 'lucide-react'
 import { textToSpeech } from '@/lib/api'
 
 const VOICE_MAP: Record<string, string> = {
-  'en-US': 'en-US-AriaNeural',
-  'pt-BR': 'pt-BR-FranciscaNeural',
-  'fr-FR': 'fr-FR-DeniseNeural',
-  'ru-RU': 'ru-RU-SvetlanaNeural',
-  'de-DE': 'de-DE-KatjaNeural',
-  'it-IT': 'it-IT-ElsaNeural',
-  'zh-CN': 'zh-CN-XiaoxiaoNeural',
+  'en-US': 'alloy',
+  'pt-BR': 'nova',
+  'fr-FR': 'shimmer',
+  'ru-RU': 'echo',
+  'de-DE': 'onyx',
+  'it-IT': 'fable',
+  'zh-CN': 'coral',
 }
 
 export default function PracticePage() {
@@ -36,17 +36,30 @@ export default function PracticePage() {
   const isRecording = status === 'recording'
   const canRecord = selectedExercise && status === 'idle'
   const accuracy = useMemo(() => result?.accuracy_score ?? 0, [result])
+  const audioCacheRef = useRef<Map<string, string>>(new Map())
 
   const handlePlayInstructions = useCallback(async () => {
     if (!selectedExercise || isPlaying) return
     setIsPlaying(true)
     try {
-      const voice = VOICE_MAP[language] ?? 'en-US-AriaNeural'
+      const voice = VOICE_MAP[language] ?? 'alloy'
+      const cacheKey = `${selectedExercise.id}|${language}|${voice}|${selectedExercise.text_to_read}`
+      const cached = audioCacheRef.current.get(cacheKey)
+      const audioSrc = cached ? `data:audio/mp3;base64,${cached}` : null
+
+      if (audioSrc) {
+        const audio = new Audio(audioSrc)
+        audio.addEventListener('ended', () => setIsPlaying(false))
+        await audio.play()
+        return
+      }
+
       const { data } = await textToSpeech({
         text: selectedExercise.text_to_read,
         voice,
         language,
       })
+      audioCacheRef.current.set(cacheKey, data.audio)
       const audio = new Audio(`data:audio/mp3;base64,${data.audio}`)
       audio.addEventListener('ended', () => setIsPlaying(false))
       await audio.play()

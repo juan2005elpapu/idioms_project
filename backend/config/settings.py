@@ -177,3 +177,6 @@ CORS_ALLOW_CREDENTIALS = True
 # Azure Speech Settings
 AZURE_SPEECH_KEY = os.environ.get('AZURE_SPEECH_KEY', '')
 AZURE_SPEECH_REGION = os.environ.get('AZURE_SPEECH_REGION', 'eastus')
+
+# OpenAI
+OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')

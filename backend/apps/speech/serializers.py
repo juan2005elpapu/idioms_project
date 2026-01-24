@@ -31,7 +31,7 @@ class PronunciationResponseSerializer(serializers.Serializer):
 
 class TextToSpeechRequestSerializer(serializers.Serializer):
     text = serializers.CharField(max_length=2000)
-    voice = serializers.CharField(max_length=100, default='en-US-AriaNeural')
+    voice = serializers.CharField(max_length=100, default='alloy')
     language = serializers.CharField(max_length=10, default='en-US')
 
 

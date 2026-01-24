@@ -11,8 +11,9 @@ import subprocess
 from typing import Any
 
 import azure.cognitiveservices.speech as speechsdk
-import requests
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from openai import OpenAI
 
 
 class SpeechEvaluationError(Exception):
@@ -25,8 +26,25 @@ class PronunciationAssessor:
     """
 
     def __init__(self):
-        self.speech_key = os.environ.get('AZURE_SPEECH_KEY', '')
-        self.speech_region = os.environ.get('AZURE_SPEECH_REGION', '')
+        self._openai_client = None
+
+    @property
+    def speech_key(self):
+        return os.environ.get('AZURE_SPEECH_KEY') or getattr(settings, 'AZURE_SPEECH_KEY', '')
+
+    @property
+    def speech_region(self):
+        return os.environ.get('AZURE_SPEECH_REGION') or getattr(settings, 'AZURE_SPEECH_REGION', '')
+
+    @property
+    def openai_api_key(self):
+        return os.environ.get('OPENAI_API_KEY') or getattr(settings, 'OPENAI_API_KEY', '')
+
+    @property
+    def openai_client(self):
+        if self._openai_client is None and self.openai_api_key:
+            self._openai_client = OpenAI(api_key=self.openai_api_key)
+        return self._openai_client
 
     # Public API
     def assess(self, audio_base64: str, reference_text: str, language: str = 'en-US') -> dict:
@@ -81,34 +99,22 @@ class PronunciationAssessor:
         if not json_result:
             raise SpeechEvaluationError('Azure no devolvió resultados de reconocimiento.')
 
-        return self._parse_result(json_result, reference_text)
+        return self._parse_result(json_result, reference_text, language)
 
     def synthesize_speech(
-        self, text: str, voice: str = 'en-US-AriaNeural', language: str = 'en-US'
+        self, text: str, voice: str = 'alloy', language: str = 'en-US'
     ) -> dict[str, str]:
-        if not self.speech_key or not self.speech_region:
-            raise ImproperlyConfigured(
-                'AZURE_SPEECH_KEY y/o AZURE_SPEECH_REGION no están configuradas.'
-            )
-        ssml = (
-            f'<speak version="1.0" xml:lang="{language}">'
-            f'<voice xml:lang="{language}" name="{voice}">'
-            f'{text}'
-            '</voice>'
-            '</speak>'
+        if not self.openai_client:
+            raise SpeechEvaluationError('OPENAI_API_KEY no está configurada.')
+
+        response = self.openai_client.audio.speech.create(
+            model='gpt-4o-mini-tts',
+            voice=voice,
+            input=text,
         )
-        endpoint = f'https://{self.speech_region}.tts.speech.microsoft.com/cognitiveservices/v1'
-        headers = {
-            'Ocp-Apim-Subscription-Key': self.speech_key,
-            'Content-Type': 'application/ssml+xml',
-            'X-Microsoft-OutputFormat': 'audio-16khz-32kbitrate-mono-mp3',
-        }
 
-        response = requests.post(endpoint, headers=headers, data=ssml.encode('utf-8'), timeout=20)
-        if response.status_code != 200:
-            raise SpeechEvaluationError('Azure Text-to-Speech falló.')
-
-        return {'audio': base64.b64encode(response.content).decode('utf-8')}
+        audio_bytes = response.content if hasattr(response, 'content') else response.read()
+        return {'audio': base64.b64encode(audio_bytes).decode('utf-8')}
 
     # Helpers
     def _decode_audio(self, audio_base64: str) -> bytes:
@@ -120,7 +126,7 @@ class PronunciationAssessor:
         except binascii.Error as exc:
             raise SpeechEvaluationError('Audio inválido: base64 corrupto.') from exc
 
-    def _parse_result(self, raw_json: str, reference_text: str) -> dict[str, Any]:
+    def _parse_result(self, raw_json: str, reference_text: str, language: str) -> dict[str, Any]:
         payload = json.loads(raw_json)
         nbest = payload.get('NBest') or []
         if not nbest:
