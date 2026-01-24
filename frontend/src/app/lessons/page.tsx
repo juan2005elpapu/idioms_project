@@ -33,6 +33,7 @@ export default function LessonsPage() {
     loadLessonDetail,
     clearSelection,
   } = useLessons()
+
   const [autoSelectDisabled, setAutoSelectDisabled] = useState(false)
   const [languageFilter, setLanguageFilter] = useState('en-US')
   const [levelFilter, setLevelFilter] = useState('beginner')
@@ -103,9 +104,16 @@ export default function LessonsPage() {
               </label>
             </div>
           </div>
-          <Button onClick={refreshLessons} variant="ghost">
-            Refresh
-          </Button>
+          <div className="flex items-center gap-3">
+            <Link href="/free-practice">
+              <Button size="lg" className="rounded-full px-6 py-3 text-base shadow-md">
+                Modo libre
+              </Button>
+            </Link>
+            <Button onClick={refreshLessons} variant="ghost">
+              Refresh
+            </Button>
+          </div>
         </div>
 
         {noMatches && (

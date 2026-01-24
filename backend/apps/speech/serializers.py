@@ -37,3 +37,21 @@ class TextToSpeechRequestSerializer(serializers.Serializer):
 
 class TextToSpeechResponseSerializer(serializers.Serializer):
     audio = serializers.CharField()
+
+
+class FreePracticeRequestSerializer(serializers.Serializer):
+    topic = serializers.CharField(max_length=120)
+    language = serializers.CharField(max_length=10, default='en-US')
+    level = serializers.CharField(max_length=20, default='beginner')
+    count = serializers.IntegerField(min_value=1, max_value=10, default=6)
+    focus = serializers.CharField(max_length=120, required=False, allow_blank=True, default='')
+
+
+class FreePracticeResponseSerializer(serializers.Serializer):
+    phrases = serializers.ListField(child=serializers.CharField())
+
+
+class FreePracticeAssessmentRequestSerializer(serializers.Serializer):
+    audio = serializers.CharField()
+    reference_text = serializers.CharField()
+    language = serializers.CharField(max_length=10, default='en-US')

@@ -116,6 +116,48 @@ class PronunciationAssessor:
         audio_bytes = response.content if hasattr(response, 'content') else response.read()
         return {'audio': base64.b64encode(audio_bytes).decode('utf-8')}
 
+    def generate_free_practice(
+        self,
+        topic: str,
+        language: str = 'en-US',
+        level: str = 'beginner',
+        count: int = 6,
+        focus: str = '',
+    ) -> dict[str, list[str]]:
+        if not self.openai_client:
+            raise SpeechEvaluationError('OPENAI_API_KEY no está configurada.')
+
+        focus_text = f'Focus: {focus}.' if focus else ''
+        system_msg = (
+            'You generate short language-learning practice sentences. '
+            'Return only JSON array of strings. No extra text.'
+        )
+        user_msg = (
+            f'Language: {language}. Level: {level}. Topic: {topic}. {focus_text} '
+            f'Generate {count} short sentences for pronunciation practice.'
+        )
+
+        response = self.openai_client.chat.completions.create(
+            model='gpt-4o-mini',
+            messages=[
+                {'role': 'system', 'content': system_msg},
+                {'role': 'user', 'content': user_msg},
+            ],
+            temperature=0.7,
+        )
+
+        content = response.choices[0].message.content.strip()
+        try:
+            phrases = json.loads(content)
+        except json.JSONDecodeError:
+            # Fallback: split lines
+            phrases = [line.strip('- ').strip() for line in content.splitlines() if line.strip()]
+
+        if not isinstance(phrases, list):
+            raise SpeechEvaluationError('La IA no devolvió una lista válida de frases.')
+
+        return {'phrases': phrases[:count]}
+
     # Helpers
     def _decode_audio(self, audio_base64: str) -> bytes:
         """Limpia encabezado data: y decodifica base64."""
