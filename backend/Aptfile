@@ -1,1 +1,5 @@
 ffmpeg
+libblas3
+liblapack3
+libpulse0
+libsndfile1
